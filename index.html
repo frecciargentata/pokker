@@ -1,3 +1,8 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Comptes Poker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -106,8 +111,16 @@ table.vs .b{color:var(--accent); font-weight:600}
 footer{border-top:1px solid var(--line); margin-top:48px; padding-top:16px; font-size:12px; color:var(--ink-3)}
 @media (max-width:920px){ header.doc,.g2,.prof{grid-template-columns:1fr} .kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .kpi:nth-child(odd){border-left:0} .recs{grid-template-columns:repeat(2,minmax(0,1fr))} }
 @media (max-width:520px){ .recs{grid-template-columns:1fr} .mgrid{grid-template-columns:repeat(2,minmax(0,1fr))} .od{grid-template-columns:70px minmax(0,1fr) auto} }
+@media (max-width:640px){
+  table.lb{min-width:0} table.lb .opt{display:none} table.lb td, table.lb th{padding:7px 6px}
+  .fig{padding:12px 12px 10px} .player .stamp{min-width:0; width:100%} .player input[type=range]{width:100%; flex:1 1 140px}
+  .cap{flex-direction:column} h1{font-size:30px} .kpi .v{font-size:20px} .rec .v{font-size:19px}
+  nav.top .in{gap:14px}
+}
 @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} *{transition:none!important} }
 </style>
+</head>
+<body>
 
 <nav class="top"><div class="in"><b>Comptes Poker</b>
   <a href="#classement">Classement</a><a href="#dynamiques">Dynamiques</a><a href="#profils">Profils</a><a href="#comparaison">Comparaison</a>
@@ -225,6 +238,14 @@ const pct = v => (v * 100).toFixed(0) + " %";
 const cls = v => v > 0 ? "pos" : v < 0 ? "neg" : "";
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+// draw each chart at the real width of its container so text keeps a readable size on phones
+function dims(svg, defW, defH, mobH) {
+  const host = svg.node().parentNode, cs = getComputedStyle(host);
+  const cw = host.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const W = Math.round(Math.min(defW, Math.max(300, cw || defW))), H = W < 600 ? mobH : defH;
+  svg.attr("viewBox", `0 0 ${W} ${H}`); return [W, H];
+}
+const NARROW = () => innerWidth < 640;
 
 // ---------------------------------------------------------------- data
 const res = GAMES.map(g => g.c.map((c, i) => c > 0 ? +(g.f[i] - c).toFixed(2) : null));
@@ -287,10 +308,11 @@ const DIV = () => d3.piecewise(d3.interpolateRgb, [css("--neg"), css("--panel"),
   let key = 4, dir = -1; const t = document.getElementById("lb");
   function draw() {
     const rows = [...ranked].sort((a, b) => { const f = cols[key][1], va = f(a), vb = f(b); return (va < vb ? -1 : va > vb ? 1 : 0) * dir; });
-    t.innerHTML = `<thead><tr>${cols.map((c, k) => `<th scope="col" ${k === key ? `aria-sort="${dir > 0 ? "ascending" : "descending"}"` : ""} data-k="${k}">${c[0]}</th>`).join("")}</tr></thead><tbody>`
+    const OPT = [3, 7, 8, 9, 10, 11];
+    t.innerHTML = `<thead><tr>${cols.map((c, k) => `<th scope="col" class="${OPT.includes(k) ? "opt" : ""}" ${k === key ? `aria-sort="${dir > 0 ? "ascending" : "descending"}"` : ""} data-k="${k}">${c[0]}</th>`).join("")}</tr></thead><tbody>`
       + rows.map(s => `<tr>${cols.map(([h, f, fmt], k) => { if (k === 1) return `<td class="nm"><span class="dot" style="background:${col(s.name)}"></span>${s.name}</td>`;
         if (!f) return `<td><svg width="110" height="22" viewBox="0 0 110 22" data-spark="${s.i}"></svg></td>`; const v = f(s);
-        return `<td class="${[4, 7, 8, 11].includes(k) ? cls(v) : ""}">${fmt(v)}</td>`; }).join("")}</tr>`).join("") + "</tbody>";
+        return `<td class="${[4, 7, 8, 11].includes(k) ? cls(v) : ""} ${OPT.includes(k) ? "opt" : ""}">${fmt(v)}</td>`; }).join("")}</tr>`).join("") + "</tbody>";
     t.querySelectorAll("th").forEach(th => th.addEventListener("click", () => { const k = +th.dataset.k; if (!cols[k][1]) return; dir = key === k ? -dir : (k === 1 ? 1 : -1); key = k; draw(); }));
     t.querySelectorAll("svg[data-spark]").forEach(sv => { const i = +sv.dataset.spark, pts = cum.map(c => c[i]);
       const x = d3.scaleLinear([0, NG], [1, 109]), y = d3.scaleLinear(d3.extent([...pts, 0]), [20, 2]); const s = d3.select(sv);
@@ -322,16 +344,16 @@ function player(id, render) {
 
 // ---------------------------------------------------------------- fig 1 : race with fixed rows
 (function race() {
-  const svg = d3.select("#race"), W = 1000, H = 420, m = {t: 26, r: 70, b: 10, l: 100};
+  const svg = d3.select("#race"), [W, H] = dims(svg, 1000, 420, 430), m = {t: 26, r: W < 600 ? 44 : 70, b: 10, l: W < 600 ? 66 : 100};
   const order = ranked.map(s => s.i), y = d3.scaleBand(order, [m.t, H - m.b]).padding(.22);
   const all = cum.flat(), x = d3.scaleLinear([d3.min(all) * 1.08, d3.max(all) * 1.08], [m.l, W - m.r]).nice();
-  svg.append("g").attr("class", "axis gridl").attr("transform", `translate(0,${m.t - 4})`).call(d3.axisTop(x).ticks(8).tickSize(-(H - m.t - m.b)).tickFormat(sg));
+  svg.append("g").attr("class", "axis gridl").attr("transform", `translate(0,${m.t - 4})`).call(d3.axisTop(x).ticks(W < 600 ? 4 : 8).tickSize(-(H - m.t - m.b)).tickFormat(sg));
   svg.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", m.t - 4).attr("y2", H - m.b).attr("stroke", css("--zero"));
   const g = svg.append("g").selectAll("g").data(order).join("g").attr("transform", i => `translate(0,${y(i)})`);
   g.append("text").attr("x", m.l - 10).attr("y", y.bandwidth() / 2).attr("dy", ".35em").attr("text-anchor", "end").style("font-weight", 600).style("font-size", "13px").style("fill", "var(--ink)").text(i => P[i]);
   const bars = g.append("rect").attr("height", y.bandwidth()).attr("fill", i => col(P[i]));
   const val = g.append("text").attr("y", y.bandwidth() / 2).attr("dy", ".35em").style("font-size", "12px").style("font-family", "var(--f-mono)");
-  const stamp = svg.append("text").attr("x", W - m.r).attr("y", H - 14).attr("text-anchor", "end").style("font-family", "var(--f-mono)").style("font-size", "26px").style("fill", "var(--ink-3)");
+  const stamp = svg.append("text").attr("x", W - m.r).attr("y", H - 14).attr("text-anchor", "end").style("font-family", "var(--f-mono)").style("font-size", W < 600 ? "16px" : "26px").style("fill", "var(--ink-3)");
   player("pl-race", t => { const v = i => cumAt(t, i);
     bars.attr("x", i => x(Math.min(0, v(i)))).attr("width", i => Math.abs(x(v(i)) - x(0)));
     val.attr("x", i => v(i) >= 0 ? x(v(i)) + 6 : x(v(i)) - 6).attr("text-anchor", i => v(i) >= 0 ? "start" : "end")
@@ -341,12 +363,12 @@ function player(id, render) {
 
 // ---------------------------------------------------------------- fig 2 : bump chart
 (function bump() {
-  const svg = d3.select("#bump"), W = 520, H = 380, m = {t: 12, r: 70, b: 26, l: 26};
+  const svg = d3.select("#bump"), [W, H] = dims(svg, 520, 380, 400), m = {t: 12, r: 62, b: 26, l: 26};
   const rankAt = d3.range(NG + 1).map(k => { const act = d3.range(NP).filter(i => ST[k][i].n > 0).sort((a, b) => cum[k][b] - cum[k][a]); const r = {}; act.forEach((i, n) => r[i] = n + 1); return r; });
   const ids = ranked.map(s => s.i), maxR = ids.length;
   const x = d3.scaleLinear([1, NG], [m.l, W - m.r]), y = d3.scaleLinear([1, maxR], [m.t + 6, H - m.b]);
   svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l - 6},0)`).call(d3.axisLeft(y).ticks(maxR).tickFormat(d3.format("d")).tickSize(0)).select(".domain").remove();
-  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${H - m.b + 6})`).call(d3.axisBottom(x).tickValues(d3.range(1, NG + 1, 6)).tickFormat(k => fds(GAMES[k - 1].d)).tickSize(0)).select(".domain").remove();
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${H - m.b + 6})`).call(d3.axisBottom(x).tickValues(d3.range(1, NG + 1, W < 600 ? 11 : 6)).tickFormat(k => fds(GAMES[k - 1].d)).tickSize(0)).select(".domain").remove();
   const clip = svg.append("clipPath").attr("id", "bclip").append("rect").attr("x", 0).attr("y", 0).attr("height", H);
   const gs = svg.append("g").selectAll("g").data(ids).join("g");
   gs.append("path").attr("clip-path", "url(#bclip)").attr("fill", "none").attr("stroke", i => col(P[i])).attr("stroke-width", 2.4)
@@ -363,7 +385,7 @@ function player(id, render) {
 
 // ---------------------------------------------------------------- fig 3 : moving bubbles
 (function bubbles() {
-  const svg = d3.select("#bub"), W = 520, H = 380, m = {t: 12, r: 16, b: 40, l: 52};
+  const svg = d3.select("#bub"), [W, H] = dims(svg, 520, 380, 380), m = {t: 12, r: 16, b: 40, l: 52};
   const vals = d3.range(3, NG + 1).flatMap(k => ST[k].filter(s => s.n >= 3).map(s => s.roi));
   const x = d3.scaleLinear([0, 1], [m.l, W - m.r]), y = d3.scaleLinear(d3.extent([...vals, 0]), [H - m.b, m.t]).nice(), r = d3.scaleSqrt([0, NG], [0, 26]);
   svg.append("g").attr("class", "axis gridl").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(5).tickSize(-(H - m.t - m.b)).tickFormat(d3.format(".0%")));
@@ -391,14 +413,14 @@ function player(id, render) {
 
 // ---------------------------------------------------------------- fig 4 : histogram build-up
 (function hist() {
-  const svg = d3.select("#hist"), W = 520, H = 340, m = {t: 24, r: 12, b: 34, l: 36};
+  const svg = d3.select("#hist"), [W, H] = dims(svg, 520, 340, 320), m = {t: 24, r: 12, b: 34, l: 36};
   const allv = res.flat().filter(v => v != null), lo = Math.floor(d3.min(allv) / 20) * 20, hi = Math.ceil(d3.max(allv) / 20) * 20;
   const bins = d3.range(lo, hi, 20), x = d3.scaleLinear([lo, hi], [m.l, W - m.r]);
   const CNT = d3.range(NG + 1).map(k => { const c = bins.map(() => 0); res.slice(0, k).flat().filter(v => v != null).forEach(v => c[Math.min(bins.length - 1, Math.floor((v - lo) / 20))]++); return c; });
   const MU = d3.range(NG + 1).map(k => { const v = res.slice(0, k).flat().filter(v => v != null); return v.length ? [d3.mean(v), d3.median(v), v.length > 1 ? d3.deviation(v) : 0, v.length] : [0, 0, 0, 0]; });
   const y = d3.scaleLinear([0, d3.max(CNT[NG]) * 1.1], [H - m.b, m.t]);
   svg.append("g").attr("class", "axis gridl").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r)));
-  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(8).tickFormat(sg));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(W < 600 ? 5 : 8).tickFormat(sg));
   const bars = svg.append("g").selectAll("rect").data(bins).join("rect").attr("x", b => x(b) + 1).attr("width", x(lo + 20) - x(lo) - 2).attr("fill", b => b < 0 ? css("--neg") : css("--pos")).attr("fill-opacity", .75);
   const mean = svg.append("line").attr("y1", m.t).attr("y2", H - m.b).attr("stroke", css("--accent")).attr("stroke-width", 1.5);
   const med = svg.append("line").attr("y1", m.t).attr("y2", H - m.b).attr("stroke", css("--ink-2")).attr("stroke-dasharray", "4 3");
@@ -407,15 +429,15 @@ function player(id, render) {
     bars.data(c).attr("y", d => y(d)).attr("height", d => y(0) - y(d));
     const mu = lerp(MU[a][0], MU[b][0], f), md = lerp(MU[a][1], MU[b][1], f);
     mean.attr("x1", x(mu)).attr("x2", x(mu)); med.attr("x1", x(md)).attr("x2", x(md));
-    txt.text(`n = ${MU[a][3]} · moyenne ${sg1(MU[a][0])} · médiane ${sg1(MU[a][1])} · σ ${MU[a][2].toFixed(1)}`); });
+    txt.text(W < 600 ? `n = ${MU[a][3]} · moy. ${sg1(MU[a][0])} · méd. ${sg1(MU[a][1])}` : `n = ${MU[a][3]} · moyenne ${sg1(MU[a][0])} · médiane ${sg1(MU[a][1])} · σ ${MU[a][2].toFixed(1)}`); });
 })();
 
 // ---------------------------------------------------------------- fig 5 : stacked pot
 (function potChart() {
-  const svg = d3.select("#pot"), W = 520, H = 340, m = {t: 14, r: 12, b: 34, l: 40};
+  const svg = d3.select("#pot"), [W, H] = dims(svg, 520, 340, 320), m = {t: 14, r: 12, b: 34, l: 40};
   const x = d3.scaleBand(d3.range(NG), [m.l, W - m.r]).padding(.15), y = d3.scaleLinear([0, d3.max(pot) * 1.08], [H - m.b, m.t]).nice();
   svg.append("g").attr("class", "axis gridl").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r)));
-  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues(d3.range(0, NG, 6)).tickFormat(g => fds(GAMES[g].d)));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues(d3.range(0, NG, W < 600 ? 11 : 6)).tickFormat(g => fds(GAMES[g].d)));
   const stack = d3.stack().keys(d3.range(NP))(GAMES.map(g => g.c));
   const rects = svg.append("g").selectAll("g").data(stack).join("g").attr("fill", d => col(P[d.key]))
     .selectAll("rect").data(d => d.map((v, g) => ({v, g, i: d.key}))).join("rect").attr("x", d => x(d.g)).attr("width", x.bandwidth())
@@ -436,7 +458,7 @@ function radar(svg, list, W = 440, H = 360, dur = 500) {
   if (svg.select(".frame").empty()) { const fr = svg.append("g").attr("class", "frame");
     [25, 50, 75, 100].forEach(l => fr.append("polygon").attr("points", d3.range(n).map(k => pt(k, l).join(",")).join(" ")).attr("fill", "none").attr("stroke", css("--line-2")));
     AXES.forEach((a, k) => { const [x2, y2] = pt(k, 100), [lx, ly] = pt(k, 120); fr.append("line").attr("x1", cx).attr("y1", cy).attr("x2", x2).attr("y2", y2).attr("stroke", css("--line"));
-      fr.append("text").attr("x", lx).attr("y", ly).attr("dy", ".35em").attr("text-anchor", Math.abs(lx - cx) < 8 ? "middle" : lx > cx ? "start" : "end").style("font-size", "11px").style("font-weight", 600).text(a.k); }); }
+      fr.append("text").attr("x", lx).attr("y", ly).attr("dy", ".35em").attr("text-anchor", Math.abs(lx - cx) < 8 ? "middle" : lx > cx ? "start" : "end").style("font-size", NARROW() ? "16px" : "11px").style("font-weight", 600).text(a.k); }); }
   const center = d3.range(n).map(() => [cx, cy].join(",")).join(" ");
   svg.selectAll("polygon.series").data(list, d => d.key).join(e => e.append("polygon").attr("class", "series").attr("points", center), u => u, x => x.remove())
     .attr("fill", d => d.color).attr("fill-opacity", .18).attr("stroke", d => d.color).attr("stroke-width", 2).attr("stroke-linejoin", "round")
@@ -492,7 +514,7 @@ function radar(svg, list, W = 440, H = 360, dur = 500) {
 // ---------------------------------------------------------------- fig 9 : continuous chord
 (function chord() {
   const svg = d3.select("#chord"), ids = d3.range(NP).filter(i => d3.sum(F[i]) + d3.sum(F, r => r[i]) > .5);
-  const R = 238, arc = d3.arc().innerRadius(R).outerRadius(R + 12), rib = d3.ribbonArrow().radius(R - 2).padAngle(1 / R);
+  const LS = Math.min(2, Math.max(1, 640 / (svg.node().clientWidth || 640))), R = 238, arc = d3.arc().innerRadius(R).outerRadius(R + 12), rib = d3.ribbonArrow().radius(R - 2).padAngle(1 / R);
   const gR = svg.append("g"), gG = svg.append("g");
   let hover = null, T = NG;
   function draw(t) { T = t; const [a, b, f] = split(t), M = ids.map(j => ids.map(i => lerp(FK[a][i][j], FK[b][i][j], f)));
@@ -504,7 +526,7 @@ function radar(svg, list, W = 440, H = 360, dur = 500) {
     const g = gG.selectAll("g").data(ch.groups, d => d.index).join(e => { const g = e.append("g"); g.append("path"); g.append("text"); return g; });
     g.select("path").attr("d", arc).attr("fill", d => col(P[ids[d.index]]));
     g.select("text").each(d => d.a = (d.startAngle + d.endAngle) / 2).attr("dy", ".35em").attr("transform", d => `rotate(${d.a * 180 / Math.PI - 90}) translate(${R + 20}) ${d.a > Math.PI ? "rotate(180)" : ""}`)
-      .attr("text-anchor", d => d.a > Math.PI ? "end" : null).style("font-size", "12px").style("font-weight", 600).style("fill", d => col(P[ids[d.index]])).text(d => d.value > 1 ? P[ids[d.index]] : "");
+      .attr("text-anchor", d => d.a > Math.PI ? "end" : null).style("font-size", 12 * LS + "px").style("font-weight", 600).style("fill", d => col(P[ids[d.index]])).text(d => d.value > 1 ? P[ids[d.index]] : "");
     g.on("mouseenter", (ev, d) => { hover = d.index; draw(T); const i = ids[d.index], Fa = FK[Math.floor(T)]; showTip(ev, `<div class="t">${P[i]}</div><div class="r"><span>Pris aux autres</span><span class="pos">${Math.round(d3.sum(Fa[i]))}</span></div><div class="r"><span>Pris par les autres</span><span class="neg">${Math.round(d3.sum(Fa, r => r[i]))}</span></div>`); })
       .on("mousemove", moveTip).on("mouseleave", () => { hover = null; draw(T); hideTip(); }); }
   player("pl-chord", draw);
@@ -522,7 +544,7 @@ function radar(svg, list, W = 440, H = 360, dur = 500) {
   document.getElementById("ff-kpi").innerHTML = `<div><span class="label">Transfert maximal</span><br><b>${P[tr.i]}</b> a pris <b class="num">${Math.round(tr.v)} CHF</b> à <b>${P[tr.j]}</b> sur la période.</div>
     <div style="margin-top:8px"><span class="label">Solde bilatéral maximal</span><br><b>${P[dm.i]}</b> domine <b>${P[dm.j]}</b> de <b class="num">${Math.round(dm.v)} CHF</b> en solde net.</div>`;
   const sel = document.getElementById("ff-sel"); ranked.forEach(s => sel.insertAdjacentHTML("beforeend", `<option value="${s.i}">${s.name}</option>`));
-  const svg = d3.select("#ff"), W = 1000, H = 330, m = {t: 10, r: 70, b: 10, l: 100};
+  const svg = d3.select("#ff"), [W, H] = dims(svg, 1000, 330, 360), m = {t: 10, r: W < 600 ? 44 : 70, b: 10, l: W < 600 ? 70 : 100};
   function draw() { const i = +sel.value, opp = ranked.map(s => s.i).filter(j => j !== i), mx = d3.max(opp, j => Math.abs(NET[i][j])) || 1;
     const y = d3.scaleBand(opp, [m.t, H - m.b]).padding(.25), x = d3.scaleLinear([-mx * 1.15, mx * 1.15], [m.l, W - m.r]);
     svg.selectAll("*").remove();
@@ -568,3 +590,6 @@ function radar(svg, list, W = 440, H = 360, dur = 500) {
   document.getElementById("odds").innerHTML = rows.map(r => `<div class="od"><span><span class="dot" style="background:${col(r.s.name)}"></span>${r.s.name}</span><span class="bar"><i style="width:${r.p / mx * 100}%;background:${col(r.s.name)}"></i></span><span class="num">${(r.p * 100).toFixed(1)} %</span></div>`).join("");
 })();
 </script>
+
+</body>
+</html>
