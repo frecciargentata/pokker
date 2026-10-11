@@ -1,0 +1,570 @@
+<title>Comptes Poker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+/* Layout: research-report grid. Left-aligned headings, numbered figures with method notes, one blue accent, numbers in mono. */
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --ink:#141a24; --ink-2:#4a5568; --ink-3:#7b8494; --line:#e1e5eb; --line-2:#cdd3dc;
+  --accent:#1f4fd1; --accent-soft:#e8eefc; --pos:#0f8a5f; --neg:#c8372d; --grid:#eceff3; --zero:#9aa3b2;
+  --f-serif:"Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-sans:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0e1116; --panel:#151a22; --ink:#e7ebf1; --ink-2:#a8b1bf; --ink-3:#7a8494; --line:#252c37; --line-2:#323b48;
+  --accent:#6f95ff; --accent-soft:#1b2540; --pos:#35c48b; --neg:#ff6b5e; --grid:#1f2630; --zero:#5b6575; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0e1116; --panel:#151a22; --ink:#e7ebf1; --ink-2:#a8b1bf; --ink-3:#7a8494; --line:#252c37; --line-2:#323b48;
+  --accent:#6f95ff; --accent-soft:#1b2540; --pos:#35c48b; --neg:#ff6b5e; --grid:#1f2630; --zero:#5b6575; color-scheme:dark }
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0; background:var(--bg); color:var(--ink); font:15px/1.55 var(--f-sans)}
+.wrap{max-width:1240px; margin:0 auto; padding-inline:clamp(16px,3.5vw,40px); padding-block:0 72px}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.num{font-family:var(--f-mono); font-variant-numeric:tabular-nums}
+.pos{color:var(--pos)} .neg{color:var(--neg)}
+nav.top{position:sticky; top:env(safe-area-inset-top,0px); z-index:20; background:color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter:blur(8px); border-bottom:1px solid var(--line)}
+nav.top .in{max-width:1240px; margin:0 auto; padding:10px clamp(16px,3.5vw,40px); display:flex; gap:20px; align-items:center; overflow-x:auto; scrollbar-width:none}
+nav.top .in::-webkit-scrollbar{display:none}
+nav.top b{font-family:var(--f-serif); font-weight:600; font-size:17px; white-space:nowrap}
+nav.top a{color:var(--ink-2); text-decoration:none; font-size:13px; white-space:nowrap}
+nav.top a:hover{color:var(--accent)}
+header.doc{padding-block:40px 8px; display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:32px}
+.label{font:600 11px var(--f-sans); letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3)}
+h1{font-family:var(--f-serif); font-weight:600; font-size:clamp(32px,4.4vw,48px); line-height:1.08; margin:8px 0 12px; text-wrap:balance}
+.abstract{color:var(--ink-2); max-width:66ch; margin:0}
+.source{border:1px solid var(--line); border-left:3px solid var(--accent); background:var(--panel); padding:14px 16px; font-size:13px; color:var(--ink-2)}
+.source b{color:var(--ink)}
+.source dl{display:grid; grid-template-columns:max-content minmax(0,1fr); gap:4px 12px; margin:10px 0 0}
+.source dt{color:var(--ink-3)} .source dd{margin:0; font-family:var(--f-mono); font-size:12px; color:var(--ink)}
+.kpis{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); border:1px solid var(--line); background:var(--panel); margin-top:24px}
+.kpi{padding:14px 16px; border-left:1px solid var(--line)} .kpi:first-child{border-left:0}
+.kpi .v{font:600 24px var(--f-mono); font-variant-numeric:tabular-nums} .kpi .s{font-size:12px; color:var(--ink-3)}
+section{padding-block:44px 0; scroll-margin-top:56px}
+h2{font-family:var(--f-serif); font-weight:600; font-size:clamp(24px,2.6vw,30px); margin:6px 0 4px; text-wrap:balance}
+.lead{color:var(--ink-2); max-width:72ch; margin:0 0 16px; font-size:14px}
+.fig{background:var(--panel); border:1px solid var(--line); padding:16px 18px 14px; min-width:0}
+.fig + .fig{margin-top:16px}
+.cap{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:10px}
+.cap .t{font-weight:600; font-size:14px} .cap .t span{color:var(--ink-3); font-weight:500; margin-right:6px}
+.method{font-size:12px; color:var(--ink-3); margin-top:8px; max-width:90ch}
+.g2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px}
+.g2 > .fig + .fig{margin-top:0}
+svg{display:block; width:100%; height:auto; overflow:visible}
+svg text{fill:var(--ink-2); font-family:var(--f-sans)}
+.axis path,.axis line{stroke:var(--line-2)} .axis text{fill:var(--ink-3); font:11px var(--f-mono)}
+.gridl line{stroke:var(--grid)} .gridl path{display:none}
+/* player controls */
+.player{display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:12px; color:var(--ink-2)}
+.player button{font:600 12px var(--f-sans); border:1px solid var(--line-2); background:var(--panel); color:var(--ink); padding:6px 12px; cursor:pointer; min-width:84px}
+.player button.play{background:var(--accent); color:#fff; border-color:var(--accent)}
+.player input[type=range]{accent-color:var(--accent); width:min(300px,60vw)}
+.player select{font:12px var(--f-sans); background:var(--panel); color:var(--ink); border:1px solid var(--line-2); padding:5px 6px}
+.player .stamp{font-family:var(--f-mono); min-width:150px}
+select.ctl{font:500 13px var(--f-sans); background:var(--panel); color:var(--ink); border:1px solid var(--line-2); padding:6px 8px}
+/* table */
+.tbl-wrap{overflow-x:auto}
+table.lb{width:100%; border-collapse:collapse; font-size:13px; min-width:860px}
+table.lb th{font:600 11px var(--f-sans); letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); text-align:right; padding:8px 10px; border-bottom:1px solid var(--line-2); cursor:pointer; white-space:nowrap; user-select:none}
+table.lb th:nth-child(-n+2){text-align:left}
+table.lb th[aria-sort]::after{content:" ▾"; color:var(--accent)} table.lb th[aria-sort="ascending"]::after{content:" ▴"}
+table.lb td{padding:7px 10px; border-bottom:1px solid var(--line); text-align:right; font-family:var(--f-mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+table.lb td:nth-child(-n+2){text-align:left; font-family:var(--f-sans)}
+table.lb td.nm{font-weight:600}
+table.lb tr:hover td{background:var(--accent-soft)}
+.dot{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:8px; vertical-align:baseline}
+.legend{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12px; color:var(--ink-2); margin-bottom:6px}
+.legend button{font:500 12px var(--f-sans); color:var(--ink-2); background:none; border:0; padding:2px 0; cursor:pointer; display:inline-flex; align-items:center}
+.legend button[aria-pressed="false"]{opacity:.35}
+/* profile */
+.prof{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:20px}
+.mgrid{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); border-top:1px solid var(--line); border-left:1px solid var(--line)}
+.m{padding:9px 11px; border-right:1px solid var(--line); border-bottom:1px solid var(--line)}
+.m .l{font-size:11px; color:var(--ink-3); text-transform:uppercase; letter-spacing:.06em} .m .v{font:600 17px var(--f-mono)} .m .s{font-size:11px; color:var(--ink-3)}
+.seq{display:flex; flex-wrap:wrap; gap:4px; margin-top:10px} .seq span{font:11px var(--f-mono); padding:2px 6px; border:1px solid var(--line)}
+table.vs{width:100%; border-collapse:collapse; font-size:13px}
+table.vs td{padding:6px 8px; border-bottom:1px solid var(--line)} table.vs td:nth-child(odd){font-family:var(--f-mono); width:32%}
+table.vs td:first-child{text-align:right} table.vs td:nth-child(2){text-align:center; color:var(--ink-3); font-size:11px; text-transform:uppercase; letter-spacing:.06em}
+table.vs .b{color:var(--accent); font-weight:600}
+.note{font-size:12px; color:var(--ink-3)}
+.box{border:1px solid var(--line); padding:12px 14px; margin-top:12px; font-size:13px}
+.recs{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); border-top:1px solid var(--line); border-left:1px solid var(--line); background:var(--panel)}
+.rec{padding:14px 16px; border-right:1px solid var(--line); border-bottom:1px solid var(--line)}
+.rec .k{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3)} .rec .v{font:600 22px var(--f-mono); margin:4px 0 2px} .rec .w{font-size:13px; font-weight:600} .rec .d{font-size:12px; color:var(--ink-3)}
+.tl{display:flex; gap:10px; overflow-x:auto; padding-bottom:6px}
+.gc{flex:0 0 210px; border:1px solid var(--line); background:var(--panel); padding:12px}
+.gc .d{font:11px var(--f-mono); color:var(--ink-3)} .gc .w{font-weight:600; margin:2px 0}
+.gc .row{display:grid; grid-template-columns:56px 1fr 44px; gap:6px; align-items:center; font-size:11px; margin-top:3px}
+.gc .tr{height:5px; background:var(--grid); position:relative} .gc .tr i{position:absolute; top:0; bottom:0}
+.gc .vv{font-family:var(--f-mono); text-align:right}
+.odds{display:grid; gap:8px} .od{display:grid; grid-template-columns:90px minmax(0,1fr) auto; gap:12px; align-items:center; font-size:13px}
+.od .bar{height:10px; background:var(--grid)} .od .bar i{display:block; height:100%; transition:width .8s ease}
+.tip{position:fixed; z-index:50; pointer-events:none; background:var(--panel); border:1px solid var(--line-2); padding:8px 10px; font-size:12px; color:var(--ink); box-shadow:0 8px 24px rgba(0,0,0,.18); max-width:280px}
+.tip .t{font-weight:600; margin-bottom:3px} .tip .r{display:flex; justify-content:space-between; gap:14px} .tip .r span:last-child{font-family:var(--f-mono)}
+footer{border-top:1px solid var(--line); margin-top:48px; padding-top:16px; font-size:12px; color:var(--ink-3)}
+@media (max-width:920px){ header.doc,.g2,.prof{grid-template-columns:1fr} .kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .kpi:nth-child(odd){border-left:0} .recs{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:520px){ .recs{grid-template-columns:1fr} .mgrid{grid-template-columns:repeat(2,minmax(0,1fr))} .od{grid-template-columns:70px minmax(0,1fr) auto} }
+@media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} *{transition:none!important} }
+</style>
+
+<nav class="top"><div class="in"><b>Comptes Poker</b>
+  <a href="#classement">Classement</a><a href="#dynamiques">Dynamiques</a><a href="#profils">Profils</a><a href="#comparaison">Comparaison</a>
+  <a href="#flux">Flux de capitaux</a><a href="#records">Records</a><a href="#modele">Modèle</a></div></nav>
+
+<div class="wrap">
+<header class="doc">
+  <div>
+    <div class="label" id="period"></div>
+    <h1>Analyse des sessions de poker</h1>
+  </div>
+  <aside class="source" aria-label="Source des données">
+    <b>Source des données</b><br>
+    Toutes les valeurs de cette page sont calculées directement à partir du classeur source, sans saisie intermédiaire. La page est régénérée à partir du classeur à chaque mise à jour.
+    <dl>
+      <dt>Classeur</dt><dd>comptes_poker_actualisés.xlsm</dd>
+      <dt>Tableaux</dt><dd>Cash-ins (Table1), Jetons finaux (Table3)</dd>
+      <dt>Observations</dt><dd id="src-obs"></dd>
+      <dt>Résultat</dt><dd>jetons finaux − cash-in, par joueur et par session</dd>
+    </dl>
+  </aside>
+</header>
+<div class="kpis" id="kpis"></div>
+
+<section id="classement">
+  <div class="label">1. Synthèse</div><h2>Classement général</h2>
+  <p class="lead">Indicateurs de performance par joueur sur l'ensemble de la période. Cliquer sur un en-tête de colonne pour trier.</p>
+  <div class="fig"><div class="tbl-wrap"><table class="lb" id="lb"></table></div>
+</div>
+</section>
+
+<section id="dynamiques">
+  <div class="label">2. Dynamiques temporelles</div><h2>Évolution session par session</h2>
+  <p class="lead">Chaque figure se rejoue en continu avec le bouton Lecture. Le curseur permet d'afficher l'état à une date donnée. Par défaut, l'état final est affiché.</p>
+  <div class="fig"><div class="cap"><div class="t"><span>Figure 1</span>Résultat cumulé par joueur</div><div class="player" id="pl-race"></div></div>
+    <svg id="race" viewBox="0 0 1000 420" role="img" aria-label="Résultat cumulé par joueur, animé"></svg>
+    <p class="method">Ordre des joueurs fixe (classement final). La longueur de chaque barre correspond au résultat cumulé à la date affichée.</p></div>
+  <div class="g2">
+    <div class="fig"><div class="cap"><div class="t"><span>Figure 2</span>Rang au classement</div><div class="player" id="pl-bump"></div></div>
+      <svg id="bump" viewBox="0 0 520 380" role="img" aria-label="Rang au fil du temps"></svg>
+      <p class="method">Rang selon le résultat cumulé, parmi les joueurs ayant déjà participé à au moins une session.</p></div>
+    <div class="fig"><div class="cap"><div class="t"><span>Figure 3</span>Taux de gain et rentabilité</div><div class="player" id="pl-bub"></div></div>
+      <svg id="bub" viewBox="0 0 520 380" role="img" aria-label="Taux de gain contre ROI"></svg>
+      <p class="method">Abscisse : taux de gain cumulé. Ordonnée : ROI cumulé. Surface : nombre de sessions jouées. Joueurs avec au moins 3 sessions à la date affichée ; la traînée montre les 6 dernières positions.</p></div>
+  </div>
+  <div class="g2" style="margin-top:16px">
+    <div class="fig"><div class="cap"><div class="t"><span>Figure 4</span>Distribution des résultats de session</div><div class="player" id="pl-hist"></div></div>
+      <svg id="hist" viewBox="0 0 520 340" role="img" aria-label="Distribution des résultats"></svg>
+      <p class="method">Tous joueurs confondus, classes de 20 CHF. Les lignes verticales indiquent la moyenne et la médiane.</p></div>
+    <div class="fig"><div class="cap"><div class="t"><span>Figure 5</span>Capital engagé par session</div><div class="player" id="pl-pot"></div></div>
+      <svg id="pot" viewBox="0 0 520 340" role="img" aria-label="Cash-in par session"></svg>
+      <p class="method">Barres empilées : cash-in de chaque joueur. Courbe : moyenne mobile du pot sur 5 sessions.</p></div>
+  </div>
+</section>
+
+<section id="profils">
+  <div class="label">3. Profils individuels</div><h2>Fiche joueur</h2>
+  <p class="lead">Indicateurs détaillés et profil normalisé. Le profil note chaque critère de 5 à 100 par rapport aux autres joueurs ayant au moins 5 sessions (100 = meilleure valeur du groupe). État au dernier jour de la période.</p>
+  <div class="fig"><div class="cap"><div class="t"><select class="ctl" id="pf-sel" aria-label="Joueur"></select></div><span class="note" id="pf-date"></span></div>
+    <div class="prof"><div style="min-width:0" id="pf-left"></div>
+      <div style="min-width:0"><div class="note" style="margin-bottom:4px"><b>Figure 6</b> Profil normalisé</div><svg id="pf-radar" viewBox="0 0 440 360"></svg>
+        <div class="note" style="margin:6px 0 4px"><b>Figure 7</b> Résultat cumulé</div><svg id="pf-spark" viewBox="0 0 440 120"></svg></div></div></div>
+</section>
+
+<section id="comparaison">
+  <div class="label">4. Comparaison</div><h2>Analyse bilatérale</h2>
+  <p class="lead">Comparaison de deux joueurs : profils superposés, indicateurs et résultats lorsqu'ils participent à la même session.</p>
+  <div class="fig"><div class="cap"><div class="t" style="display:flex; gap:10px; align-items:center"><select class="ctl" id="vs-a" aria-label="Joueur A"></select><span>contre</span><select class="ctl" id="vs-b" aria-label="Joueur B"></select></div></div>
+    <div class="g2"><div><div class="note"><b>Figure 8</b> Profils normalisés superposés</div><svg id="vs-radar" viewBox="0 0 440 360"></svg></div>
+      <div style="min-width:0"><table class="vs" id="vs-t"></table><div class="box" id="vs-h"></div></div></div></div>
+</section>
+
+<section id="flux">
+  <div class="label">5. Flux de capitaux</div><h2>Transferts entre joueurs</h2>
+  <p class="lead">Pour chaque session, la perte de chaque perdant est répartie entre les gagnants au prorata de leurs gains. Le cumul de ces transferts donne, pour chaque paire de joueurs, le montant transféré dans chaque sens.</p>
+  <div class="g2">
+    <div class="fig"><div class="cap"><div class="t"><span>Figure 9</span>Diagramme des flux</div><div class="player" id="pl-chord"></div></div>
+      <svg id="chord" viewBox="-320 -320 640 640" role="img" aria-label="Diagramme des flux"></svg>
+      <p class="method">Chaque ruban va du joueur perdant vers le joueur gagnant ; sa largeur est proportionnelle au montant cumulé. Survoler un joueur pour isoler ses flux.</p></div>
+    <div class="fig"><div class="cap"><div class="t"><span>Tableau 1</span>Victime préférée et bête noire</div></div>
+      <div class="tbl-wrap"><table class="lb" id="vb" style="min-width:420px"></table></div>
+      <p class="method">Victime préférée : joueur auquel le montant le plus élevé a été pris. Bête noire : joueur qui a pris le montant le plus élevé.</p>
+      <div class="box" id="ff-kpi"></div></div>
+  </div>
+  <div class="fig" style="margin-top:16px"><div class="cap"><div class="t"><span>Figure 10</span>Solde bilatéral de <select class="ctl" id="ff-sel" aria-label="Joueur"></select></div></div>
+    <svg id="ff" viewBox="0 0 1000 330" role="img" aria-label="Solde bilatéral du joueur sélectionné"></svg>
+    <p class="method">Pour le joueur sélectionné : montant pris à chaque adversaire moins montant pris par cet adversaire, cumulé sur la période.</p></div>
+</section>
+
+<section id="records">
+  <div class="label">6. Valeurs extrêmes</div><h2>Records</h2>
+  <div class="recs" id="recs"></div>
+</section>
+
+<section id="modele">
+  <div class="label">7. Modèle indicatif</div><h2>Probabilité de terminer en tête à la prochaine session</h2>
+  <p class="lead">Modèle logistique simple (softmax) combinant le résultat moyen des 5 dernières sessions jouées (poids 0,6), le résultat moyen sur la période (0,4) et le taux de gain (0,3). Joueurs ayant joué au moins une des 8 dernières sessions. Estimation sans validation statistique, à titre indicatif.</p>
+  <div class="fig"><div class="odds" id="odds"></div></div>
+</section>
+
+<footer id="foot"></footer>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+const RAW = {"players":["Omar","Steph","John","Karim","Henrik","Fantôme","Tanguy","Aimen","Leg","Loic"],"games":[{"d":"2025-09-14","c":[15,40,15,30,0,0,0,0,0,0],"f":[56.3,12.5,30.8,0,0,0,0,0,0,0]},{"d":"2025-09-30","c":[25,50,70,25,0,0,0,0,0,0],"f":[30.1,17.5,58.3,64.1,0,0,0,0,0,0]},{"d":"2025-10-05","c":[10,10,0,10,0,0,0,0,0,0],"f":[10.4,19.5,0,0.1,0,0,0,0,0,0]},{"d":"2025-10-11","c":[30,60,20,20,30,0,0,0,0,0],"f":[0,26.9,69,31,33.1,0,0,0,0,0]},{"d":"2025-10-15","c":[25,25,25,35,0,0,0,0,0,0],"f":[0,1.5,50,58.5,0,0,0,0,0,0]},{"d":"2025-10-25","c":[20,35,20,35,20,0,0,0,0,0],"f":[42.4,50.7,21,2.7,13.2,0,0,0,0,0]},{"d":"2025-11-05","c":[25,50,25,0,25,0,0,0,0,0],"f":[48.6,34.9,30.7,0,10.8,0,0,0,0,0]},{"d":"2025-11-15","c":[75,25,50,25,25,0,0,0,0,0],"f":[0,57,45.2,45.5,52.3,0,0,0,0,0]},{"d":"2025-11-22","c":[25,50,50,25,25,0,0,0,0,0],"f":[67.3,0,35.6,46.7,25.4,0,0,0,0,0]},{"d":"2025-11-28","c":[25,50,25,29,25,0,0,0,0,0],"f":[30.5,0,74.6,0,50.9,0,0,0,0,0]},{"d":"2025-12-05","c":[75,0,25,20,25,0,0,0,0,0],"f":[15.6,0,20.7,37,71.7,0,0,0,0,0]},{"d":"2025-12-10","c":[25,60,50,63,25,0,0,0,0,0],"f":[86.6,85.8,54.4,0,0,0,0,0,0,0]},{"d":"2025-12-17","c":[0,25,25,55,35,0,0,0,0,0],"f":[0,19,51.8,10.3,58.9,0,0,0,0,0]},{"d":"2025-12-27","c":[0,25,31,25,35,65,0,0,0,0],"f":[0,116.2,0,15.1,36.2,14.5,0,0,0,0]},{"d":"2026-01-20","c":[30,60,50,50,0,0,0,0,0,0],"f":[92.8,34.9,62.3,0,0,0,0,0,0,0]},{"d":"2026-01-24","c":[25,25,50,75,25,0,25,0,0,0],"f":[0,133.8,40.4,0,36.6,0,15.7,0,0,0]},{"d":"2026-01-29","c":[0,40,40,40,65,0,0,0,0,0],"f":[0,65,76.3,43.1,0.6,0,0,0,0,0]},{"d":"2026-02-06","c":[60,60,30,55,0,0,30,0,0,0],"f":[64.9,86.6,83.5,0,0,0,0,0,0,0]},{"d":"2026-02-14","c":[40,40,80,40,80,0,0,40,0,0],"f":[0,0,114.2,0,120.1,0,0,81.2,0,0]},{"d":"2026-02-21","c":[40,30,60,0,30,0,0,30,30,0],"f":[72.3,0,22.6,0,56.1,0,0,31,37.4,0]},{"d":"2026-02-27","c":[130,40,40,45,126.9,0,0,0,0,0],"f":[82.9,177.1,122.3,0,0,0,0,0,0,0]},{"d":"2026-03-11","c":[0,80,80,40,40,0,0,40,0,0],"f":[0,113.9,45,0,51.6,0,0,69.5,0,0]},{"d":"2026-03-14","c":[30,70,30,50,80,0,0,30,0,0],"f":[65,54.1,48.1,24.7,98.2,0,0,0,0,0]},{"d":"2026-03-21","c":[0,70,30,30,100,0,0,30,0,0],"f":[0,0,234,26,0,0,0,0,0,0]},{"d":"2026-04-04","c":[30,30,30,50,60,0,0,0,0,0],"f":[31.5,16.2,152.3,0,0,0,0,0,0,0]},{"d":"2026-04-25","c":[0,25,25,25,25,0,0,25,0,0],"f":[0,50.2,23.2,18.3,9.2,0,0,24.1,0,0]},{"d":"2026-05-24","c":[0,40,40,40,40,0,0,40,0,0],"f":[0,0,66.5,76.8,56.7,0,0,0,0,0]},{"d":"2026-06-20","c":[0,40,40,60,0,0,0,0,0,80],"f":[0,108,110.8,0,0,0,0,0,0,0]},{"d":"2026-07-24","c":[0,60,30,30,30,0,0,30,0,0],"f":[0,62.3,62,55.8,0,0,0,0,0,0]},{"d":"2026-08-07","c":[0,60,60,50,30,0,0,0,0,30],"f":[0,0,75,0,0,0,0,0,0,155]},{"d":"2026-08-21","c":[0,60,30,30,30,0,0,0,0,60],"f":[0,68.1,64.4,54.8,22.8,0,0,0,0,0]},{"d":"2026-09-04","c":[0,30,60,30,30,0,0,0,30,0],"f":[0,180,0,0,0,0,0,0,0,0]},{"d":"2026-09-09","c":[0,40,40,40,40,0,0,0,0,0],"f":[0,0,0,160,0,0,0,0,0,0]},{"d":"2026-09-27","c":[0,40,40,40,80,0,0,0,0,60],"f":[0,176.9,9.1,74,0,0,0,0,0,0]}]};
+const P = RAW.players, NP = P.length, GAMES = RAW.games, NG = GAMES.length;
+const COL = {Omar:"#3b82c4",Steph:"#d9534f",John:"#6c5ce7",Karim:"#1f9e6e",Henrik:"#e08e0b","Fantôme":"#8a94a6",Tanguy:"#8db600",Aimen:"#b05cc9",Leg:"#e35d9c",Loic:"#17a2b8"};
+const col = n => COL[n] || "#888";
+const fd = s => { const [Y,M,D] = s.split("-"); return `${D}.${M}.${Y}`; };
+const fds = s => { const [Y,M,D] = s.split("-"); return `${D}.${M}.${Y.slice(2)}`; };
+const sg = v => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(Math.round(v)).toLocaleString("fr-CH");
+const sg1 = v => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(1);
+const pct = v => (v * 100).toFixed(0) + " %";
+const cls = v => v > 0 ? "pos" : v < 0 ? "neg" : "";
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// ---------------------------------------------------------------- data
+const res = GAMES.map(g => g.c.map((c, i) => c > 0 ? +(g.f[i] - c).toFixed(2) : null));
+const pot = GAMES.map(g => d3.sum(g.c));
+const cum = [Array(NP).fill(0)]; res.forEach(r => cum.push(cum[cum.length - 1].map((v, i) => +(v + (r[i] || 0)).toFixed(2))));   // cum[k] after k sessions
+const winnerOf = g => d3.maxIndex(res[g], v => v == null ? -Infinity : v);
+function flowsUpTo(k) { const F = P.map(() => Array(NP).fill(0));
+  res.slice(0, k).forEach(r => { const gains = r.map(v => v != null && v > 0 ? v : 0), tot = d3.sum(gains); if (!tot) return;
+    r.forEach((v, j) => { if (v != null && v < 0) gains.forEach((g, i) => { if (g) F[i][j] += -v * g / tot; }); }); });
+  return F; }
+const F = flowsUpTo(NG), NET = P.map((_, i) => P.map((_, j) => F[i][j] - F[j][i]));
+function statsAt(i, k) {           // stats using the first k sessions
+  const played = []; for (let g = 0; g < k; g++) if (res[g][i] != null) played.push({g, v: res[g][i]});
+  const n = played.length, vals = played.map(p => p.v), staked = d3.sum(GAMES.slice(0, k), g => g.c[i]), total = d3.sum(vals);
+  let best = null, worst = null, ws = 0, ls = 0, cw = 0, cl = 0;
+  played.forEach(p => { if (!best || p.v > best.v) best = p; if (!worst || p.v < worst.v) worst = p;
+    if (p.v > 0) { cw++; cl = 0; } else if (p.v < 0) { cl++; cw = 0; } else { cw = cl = 0; } ws = Math.max(ws, cw); ls = Math.max(ls, cl); });
+  let hi = 0, dd = 0; for (let t = 0; t <= k; t++) { hi = Math.max(hi, cum[t][i]); dd = Math.max(dd, hi - cum[t][i]); }
+  const std = n > 1 ? d3.deviation(vals) : 0, avg = n ? total / n : 0;
+  return {i, name: P[i], n, staked, total, avg, std, sharpe: std ? avg / std : 0, roi: staked ? total / staked : 0,
+    winRate: n ? vals.filter(v => v > 0).length / n : 0, wins: vals.filter(v => v > 0).length, best, worst, ws, ls, dd,
+    form: d3.sum(res.slice(Math.max(0, k - 5), k), r => r[i] || 0), part: k ? n / k : 0, played,
+    recent: d3.mean(played.slice(-5), p => p.v) || 0, firsts: d3.range(k).filter(g => winnerOf(g) === i).length, median: n ? d3.median(vals) : 0};
+}
+const ST = d3.range(NG + 1).map(k => P.map((_, i) => statsAt(i, k)));   // ST[k][i]
+const S = ST[NG];
+const ranked = [...S].filter(s => s.n).sort((a, b) => b.total - a.total);
+const AXES = [{k: "Taux de gain", f: s => s.winRate}, {k: "ROI", f: s => s.roi}, {k: "Régularité", f: s => -s.std},
+  {k: "Gain max.", f: s => s.best ? s.best.v : 0}, {k: "Forme", f: s => s.form}, {k: "Assiduité", f: s => s.part}];
+function scoresAt(s, k) { const el = ST[k].filter(x => x.n >= 5); if (s.n < 5 || el.length < 2) return null;
+  return AXES.map(a => { const v = el.map(a.f), lo = d3.min(v), hi = d3.max(v); return hi === lo ? 50 : 5 + 95 * (a.f(s) - lo) / (hi - lo); }); }
+
+// ---------------------------------------------------------------- tooltip
+const tip = document.getElementById("tip");
+const showTip = (ev, h) => { tip.innerHTML = h; tip.hidden = false; moveTip(ev); };
+function moveTip(ev) { const w = tip.offsetWidth, h = tip.offsetHeight; let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - 14; if (y + h > innerHeight - 8) y = ev.clientY - h - 14; tip.style.left = x + "px"; tip.style.top = y + "px"; }
+const hideTip = () => tip.hidden = true;
+const DIV = () => d3.piecewise(d3.interpolateRgb, [css("--neg"), css("--panel"), css("--pos")]);
+
+// ---------------------------------------------------------------- header
+(function header() {
+  document.getElementById("period").textContent = `Période du ${fd(GAMES[0].d)} au ${fd(GAMES[NG - 1].d)}`;
+  document.getElementById("src-obs").textContent = `${NG} sessions × ${NP} joueurs, ${d3.sum(S, s => s.n)} participations`;
+  const tot = d3.sum(pot), top = ranked[0], bot = ranked[ranked.length - 1];
+
+  const k = [["Sessions", NG, `${fds(GAMES[0].d)} – ${fds(GAMES[NG - 1].d)}`], ["Capital engagé", Math.round(tot).toLocaleString("fr-CH") + " CHF", "somme des cash-in"],
+    ["Pot moyen", Math.round(tot / NG) + " CHF", `médiane ${Math.round(d3.median(pot))} CHF`], ["Pot maximal", Math.round(d3.max(pot)) + " CHF", fd(GAMES[d3.maxIndex(pot)].d)],
+    ["Joueurs par session", d3.mean(res, r => r.filter(v => v != null).length).toFixed(1), `${ranked.length} joueurs distincts`]];
+  document.getElementById("kpis").innerHTML = k.map(([l, v, s]) => `<div class="kpi"><div class="label">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
+  document.getElementById("foot").textContent = `Source : comptes_poker_actualisés.xlsm, tableaux Cash-ins et Jetons finaux. État des données au ${fd(GAMES[NG - 1].d)}. Montants en CHF.`;
+})();
+
+// ---------------------------------------------------------------- leaderboard
+(function leaderboard() {
+  const cols = [["#", s => s.rank, String], ["Joueur", s => s.name, null], ["Sessions", s => s.n, String], ["Cash-in", s => s.staked, v => Math.round(v).toLocaleString("fr-CH")],
+    ["Résultat", s => s.total, sg], ["ROI", s => s.roi, pct], ["Taux de gain", s => s.winRate, pct], ["Moy./session", s => s.avg, sg1], ["Médiane", s => s.median, sg1],
+    ["Volatilité", s => s.std, v => v.toFixed(1)], ["Sharpe", s => s.sharpe, v => v.toFixed(2)], ["Drawdown max.", s => -s.dd, v => sg(v)], ["Tendance", null, null]];
+  ranked.forEach((s, k) => s.rank = k + 1);
+  let key = 4, dir = -1; const t = document.getElementById("lb");
+  function draw() {
+    const rows = [...ranked].sort((a, b) => { const f = cols[key][1], va = f(a), vb = f(b); return (va < vb ? -1 : va > vb ? 1 : 0) * dir; });
+    t.innerHTML = `<thead><tr>${cols.map((c, k) => `<th scope="col" ${k === key ? `aria-sort="${dir > 0 ? "ascending" : "descending"}"` : ""} data-k="${k}">${c[0]}</th>`).join("")}</tr></thead><tbody>`
+      + rows.map(s => `<tr>${cols.map(([h, f, fmt], k) => { if (k === 1) return `<td class="nm"><span class="dot" style="background:${col(s.name)}"></span>${s.name}</td>`;
+        if (!f) return `<td><svg width="110" height="22" viewBox="0 0 110 22" data-spark="${s.i}"></svg></td>`; const v = f(s);
+        return `<td class="${[4, 7, 8, 11].includes(k) ? cls(v) : ""}">${fmt(v)}</td>`; }).join("")}</tr>`).join("") + "</tbody>";
+    t.querySelectorAll("th").forEach(th => th.addEventListener("click", () => { const k = +th.dataset.k; if (!cols[k][1]) return; dir = key === k ? -dir : (k === 1 ? 1 : -1); key = k; draw(); }));
+    t.querySelectorAll("svg[data-spark]").forEach(sv => { const i = +sv.dataset.spark, pts = cum.map(c => c[i]);
+      const x = d3.scaleLinear([0, NG], [1, 109]), y = d3.scaleLinear(d3.extent([...pts, 0]), [20, 2]); const s = d3.select(sv);
+      s.append("line").attr("x1", 1).attr("x2", 109).attr("y1", y(0)).attr("y2", y(0)).attr("stroke", css("--line-2"));
+      s.append("path").attr("d", d3.line().x((d, k) => x(k)).y(d => y(d))(pts)).attr("fill", "none").attr("stroke", col(P[i])).attr("stroke-width", 1.5); });
+  }
+  draw();
+})();
+
+// ---------------------------------------------------------------- continuous playback control
+const FK = d3.range(NG + 1).map(k => flowsUpTo(k));
+const lerp = (a, b, f) => a + (b - a) * f;
+const split = t => { const k0 = Math.min(NG, Math.floor(t)), k1 = Math.min(NG, k0 + 1); return [k0, k1, t - k0]; };
+const cumAt = (t, i) => { const [a, b, f] = split(t); return lerp(cum[a][i], cum[b][i], f); };
+function player(id, render) {
+  const el = document.getElementById(id);
+  el.innerHTML = `<button type="button" class="play">Lecture</button><input type="range" min="0" max="${NG}" step="0.01" value="${NG}" aria-label="Date affichée">
+    <select aria-label="Vitesse"><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option></select><span class="stamp"></span>`;
+  const [btn, rng, spd, stamp] = [el.querySelector("button"), el.querySelector("input"), el.querySelector("select"), el.querySelector(".stamp")];
+  let t = NG, raf = null, last = null;
+  function set(nt) { t = Math.max(0, Math.min(NG, nt)); rng.value = t; const k = Math.floor(t + 1e-6);
+    stamp.textContent = k === 0 ? `Session 0 / ${NG}` : `Session ${k} / ${NG} · ${fd(GAMES[k - 1].d)}`; render(t); }
+  function stop() { cancelAnimationFrame(raf); raf = null; last = null; btn.textContent = "Lecture"; }
+  function frame(ts) { if (last == null) last = ts; set(t + (ts - last) / 1000 * 1.4 * +spd.value); last = ts; if (t >= NG) return stop(); raf = requestAnimationFrame(frame); }
+  btn.addEventListener("click", () => { if (raf) return stop(); btn.textContent = "Pause"; if (t >= NG) set(0); raf = requestAnimationFrame(frame); });
+  rng.addEventListener("input", () => { stop(); set(+rng.value); });
+  set(NG);
+}
+
+// ---------------------------------------------------------------- fig 1 : race with fixed rows
+(function race() {
+  const svg = d3.select("#race"), W = 1000, H = 420, m = {t: 26, r: 70, b: 10, l: 100};
+  const order = ranked.map(s => s.i), y = d3.scaleBand(order, [m.t, H - m.b]).padding(.22);
+  const all = cum.flat(), x = d3.scaleLinear([d3.min(all) * 1.08, d3.max(all) * 1.08], [m.l, W - m.r]).nice();
+  svg.append("g").attr("class", "axis gridl").attr("transform", `translate(0,${m.t - 4})`).call(d3.axisTop(x).ticks(8).tickSize(-(H - m.t - m.b)).tickFormat(sg));
+  svg.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", m.t - 4).attr("y2", H - m.b).attr("stroke", css("--zero"));
+  const g = svg.append("g").selectAll("g").data(order).join("g").attr("transform", i => `translate(0,${y(i)})`);
+  g.append("text").attr("x", m.l - 10).attr("y", y.bandwidth() / 2).attr("dy", ".35em").attr("text-anchor", "end").style("font-weight", 600).style("font-size", "13px").style("fill", "var(--ink)").text(i => P[i]);
+  const bars = g.append("rect").attr("height", y.bandwidth()).attr("fill", i => col(P[i]));
+  const val = g.append("text").attr("y", y.bandwidth() / 2).attr("dy", ".35em").style("font-size", "12px").style("font-family", "var(--f-mono)");
+  const stamp = svg.append("text").attr("x", W - m.r).attr("y", H - 14).attr("text-anchor", "end").style("font-family", "var(--f-mono)").style("font-size", "26px").style("fill", "var(--ink-3)");
+  player("pl-race", t => { const v = i => cumAt(t, i);
+    bars.attr("x", i => x(Math.min(0, v(i)))).attr("width", i => Math.abs(x(v(i)) - x(0)));
+    val.attr("x", i => v(i) >= 0 ? x(v(i)) + 6 : x(v(i)) - 6).attr("text-anchor", i => v(i) >= 0 ? "start" : "end")
+      .style("fill", i => v(i) > .5 ? "var(--pos)" : v(i) < -.5 ? "var(--neg)" : "var(--ink-3)").text(i => sg(v(i)));
+    const k = Math.floor(t + 1e-6); stamp.text(k ? fd(GAMES[k - 1].d) : "Début"); });
+})();
+
+// ---------------------------------------------------------------- fig 2 : bump chart
+(function bump() {
+  const svg = d3.select("#bump"), W = 520, H = 380, m = {t: 12, r: 70, b: 26, l: 26};
+  const rankAt = d3.range(NG + 1).map(k => { const act = d3.range(NP).filter(i => ST[k][i].n > 0).sort((a, b) => cum[k][b] - cum[k][a]); const r = {}; act.forEach((i, n) => r[i] = n + 1); return r; });
+  const ids = ranked.map(s => s.i), maxR = ids.length;
+  const x = d3.scaleLinear([1, NG], [m.l, W - m.r]), y = d3.scaleLinear([1, maxR], [m.t + 6, H - m.b]);
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l - 6},0)`).call(d3.axisLeft(y).ticks(maxR).tickFormat(d3.format("d")).tickSize(0)).select(".domain").remove();
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${H - m.b + 6})`).call(d3.axisBottom(x).tickValues(d3.range(1, NG + 1, 6)).tickFormat(k => fds(GAMES[k - 1].d)).tickSize(0)).select(".domain").remove();
+  const clip = svg.append("clipPath").attr("id", "bclip").append("rect").attr("x", 0).attr("y", 0).attr("height", H);
+  const gs = svg.append("g").selectAll("g").data(ids).join("g");
+  gs.append("path").attr("clip-path", "url(#bclip)").attr("fill", "none").attr("stroke", i => col(P[i])).attr("stroke-width", 2.4)
+    .attr("d", i => d3.line().defined(d => d.r).x(d => x(d.k)).y(d => y(d.r)).curve(d3.curveMonotoneX)(d3.range(1, NG + 1).map(k => ({k, r: rankAt[k][i]}))));
+  const dots = gs.append("circle").attr("r", 4).attr("fill", i => col(P[i])).attr("stroke", "var(--panel)").attr("stroke-width", 1.5);
+  const labs = gs.append("text").style("font-size", "11px").style("font-weight", 600).style("fill", i => col(P[i])).text(i => P[i]);
+  gs.on("mouseenter", (e, i) => gs.style("opacity", j => j === i ? 1 : .15)).on("mouseleave", () => gs.style("opacity", 1));
+  player("pl-bump", t => { const tt = Math.max(1, t), [a, b, f] = split(tt);
+    const ry = i => { const ra = rankAt[a][i], rb = rankAt[b][i]; if (!ra && !rb) return null; if (!ra) return f > .5 ? rb : null; return lerp(ra, rb || ra, f); };
+    clip.attr("width", x(tt) + 6);
+    dots.attr("cx", x(tt)).attr("cy", i => ry(i) ? y(ry(i)) : -50).style("opacity", i => ry(i) ? 1 : 0);
+    labs.attr("x", x(tt) + 8).attr("y", i => ry(i) ? y(ry(i)) + 4 : -50).style("opacity", i => ry(i) ? 1 : 0); });
+})();
+
+// ---------------------------------------------------------------- fig 3 : moving bubbles
+(function bubbles() {
+  const svg = d3.select("#bub"), W = 520, H = 380, m = {t: 12, r: 16, b: 40, l: 52};
+  const vals = d3.range(3, NG + 1).flatMap(k => ST[k].filter(s => s.n >= 3).map(s => s.roi));
+  const x = d3.scaleLinear([0, 1], [m.l, W - m.r]), y = d3.scaleLinear(d3.extent([...vals, 0]), [H - m.b, m.t]).nice(), r = d3.scaleSqrt([0, NG], [0, 26]);
+  svg.append("g").attr("class", "axis gridl").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(5).tickSize(-(H - m.t - m.b)).tickFormat(d3.format(".0%")));
+  svg.append("g").attr("class", "axis gridl").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(6).tickSize(-(W - m.l - m.r)).tickFormat(d3.format("+.0%")));
+  svg.append("line").attr("x1", m.l).attr("x2", W - m.r).attr("y1", y(0)).attr("y2", y(0)).attr("stroke", css("--zero"));
+  svg.append("line").attr("x1", x(.5)).attr("x2", x(.5)).attr("y1", m.t).attr("y2", H - m.b).attr("stroke", css("--zero")).attr("stroke-dasharray", "3 3");
+  svg.append("text").attr("x", (m.l + W - m.r) / 2).attr("y", H - 6).attr("text-anchor", "middle").style("font-size", "11px").text("Taux de gain");
+  svg.append("text").attr("transform", `translate(12,${(m.t + H - m.b) / 2}) rotate(-90)`).attr("text-anchor", "middle").style("font-size", "11px").text("ROI");
+  const ids = ranked.map(s => s.i), trails = svg.append("g").selectAll("path").data(ids).join("path").attr("fill", "none").attr("stroke", i => col(P[i])).attr("stroke-opacity", .35).attr("stroke-width", 1.4);
+  const nodes = svg.append("g").selectAll("g").data(ids).join("g");
+  nodes.append("circle").attr("fill", i => col(P[i])).attr("fill-opacity", .55).attr("stroke", i => col(P[i])).attr("stroke-width", 1.5);
+  nodes.append("text").attr("text-anchor", "middle").attr("dy", ".35em").style("font-size", "11px").style("font-weight", 600).style("fill", "var(--ink)").text(i => P[i]);
+  let cur = NG;
+  nodes.on("mouseenter", (ev, i) => { const s = ST[Math.floor(cur)][i]; showTip(ev, `<div class="t">${P[i]}</div><div class="r"><span>Sessions</span><span>${s.n}</span></div><div class="r"><span>Taux de gain</span><span>${pct(s.winRate)}</span></div><div class="r"><span>ROI</span><span>${pct(s.roi)}</span></div>`); })
+    .on("mousemove", moveTip).on("mouseleave", hideTip);
+  player("pl-bub", t => { cur = t; const [a, b, f] = split(t);
+    const pos = i => { const A = ST[a][i], B = ST[b][i]; if (B.n < 3) return null; const S0 = A.n >= 3 ? A : B;
+      return {x: lerp(S0.winRate, B.winRate, f), y: lerp(S0.roi, B.roi, f), n: lerp(A.n, B.n, f), o: A.n >= 3 ? 1 : f}; };
+    nodes.each(function (i) { const p = pos(i), g = d3.select(this);
+      if (!p) return g.style("opacity", 0);
+      g.style("opacity", p.o).attr("transform", `translate(${x(p.x)},${y(p.y)})`).select("circle").attr("r", r(p.n)); });
+    trails.attr("d", i => { const pts = d3.range(Math.max(3, a - 6), a + 1).filter(k => ST[k][i].n >= 3).map(k => [x(ST[k][i].winRate), y(ST[k][i].roi)]); const p = pos(i);
+      if (p) pts.push([x(p.x), y(p.y)]); return pts.length > 1 ? d3.line().curve(d3.curveCatmullRom)(pts) : null; }); });
+})();
+
+// ---------------------------------------------------------------- fig 4 : histogram build-up
+(function hist() {
+  const svg = d3.select("#hist"), W = 520, H = 340, m = {t: 24, r: 12, b: 34, l: 36};
+  const allv = res.flat().filter(v => v != null), lo = Math.floor(d3.min(allv) / 20) * 20, hi = Math.ceil(d3.max(allv) / 20) * 20;
+  const bins = d3.range(lo, hi, 20), x = d3.scaleLinear([lo, hi], [m.l, W - m.r]);
+  const CNT = d3.range(NG + 1).map(k => { const c = bins.map(() => 0); res.slice(0, k).flat().filter(v => v != null).forEach(v => c[Math.min(bins.length - 1, Math.floor((v - lo) / 20))]++); return c; });
+  const MU = d3.range(NG + 1).map(k => { const v = res.slice(0, k).flat().filter(v => v != null); return v.length ? [d3.mean(v), d3.median(v), v.length > 1 ? d3.deviation(v) : 0, v.length] : [0, 0, 0, 0]; });
+  const y = d3.scaleLinear([0, d3.max(CNT[NG]) * 1.1], [H - m.b, m.t]);
+  svg.append("g").attr("class", "axis gridl").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r)));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(8).tickFormat(sg));
+  const bars = svg.append("g").selectAll("rect").data(bins).join("rect").attr("x", b => x(b) + 1).attr("width", x(lo + 20) - x(lo) - 2).attr("fill", b => b < 0 ? css("--neg") : css("--pos")).attr("fill-opacity", .75);
+  const mean = svg.append("line").attr("y1", m.t).attr("y2", H - m.b).attr("stroke", css("--accent")).attr("stroke-width", 1.5);
+  const med = svg.append("line").attr("y1", m.t).attr("y2", H - m.b).attr("stroke", css("--ink-2")).attr("stroke-dasharray", "4 3");
+  const txt = svg.append("text").attr("x", W - m.r).attr("y", 10).attr("text-anchor", "end").style("font-size", "11px").style("font-family", "var(--f-mono)");
+  player("pl-hist", t => { const [a, b, f] = split(t), c = bins.map((_, j) => lerp(CNT[a][j], CNT[b][j], f));
+    bars.data(c).attr("y", d => y(d)).attr("height", d => y(0) - y(d));
+    const mu = lerp(MU[a][0], MU[b][0], f), md = lerp(MU[a][1], MU[b][1], f);
+    mean.attr("x1", x(mu)).attr("x2", x(mu)); med.attr("x1", x(md)).attr("x2", x(md));
+    txt.text(`n = ${MU[a][3]} · moyenne ${sg1(MU[a][0])} · médiane ${sg1(MU[a][1])} · σ ${MU[a][2].toFixed(1)}`); });
+})();
+
+// ---------------------------------------------------------------- fig 5 : stacked pot
+(function potChart() {
+  const svg = d3.select("#pot"), W = 520, H = 340, m = {t: 14, r: 12, b: 34, l: 40};
+  const x = d3.scaleBand(d3.range(NG), [m.l, W - m.r]).padding(.15), y = d3.scaleLinear([0, d3.max(pot) * 1.08], [H - m.b, m.t]).nice();
+  svg.append("g").attr("class", "axis gridl").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r)));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues(d3.range(0, NG, 6)).tickFormat(g => fds(GAMES[g].d)));
+  const stack = d3.stack().keys(d3.range(NP))(GAMES.map(g => g.c));
+  const rects = svg.append("g").selectAll("g").data(stack).join("g").attr("fill", d => col(P[d.key]))
+    .selectAll("rect").data(d => d.map((v, g) => ({v, g, i: d.key}))).join("rect").attr("x", d => x(d.g)).attr("width", x.bandwidth())
+    .on("mouseenter", (ev, d) => showTip(ev, `<div class="t">${fd(GAMES[d.g].d)}</div><div class="r"><span>${P[d.i]}</span><span>${GAMES[d.g].c[d.i]} CHF</span></div><div class="r"><span>Pot</span><span>${Math.round(pot[d.g])} CHF</span></div>`)).on("mousemove", moveTip).on("mouseleave", hideTip);
+  const ma = pot.map((_, g) => d3.mean(pot.slice(Math.max(0, g - 4), g + 1)));
+  const path = svg.append("path").attr("fill", "none").attr("stroke", css("--ink")).attr("stroke-width", 1.8);
+  player("pl-pot", t => { const h = d => Math.max(0, Math.min(1, t - d.g));
+    rects.attr("y", d => y(d.v[1] * h(d))).attr("height", d => y(d.v[0] * h(d)) - y(d.v[1] * h(d)));
+    const k = Math.floor(t), cx = g => x(g) + x.bandwidth() / 2, pts = ma.slice(0, k).map((v, g) => [cx(g), y(v)]);
+    if (k < NG && k > 0 && t > k) pts.push([lerp(cx(k - 1), cx(k), t - k), y(lerp(ma[k - 1], ma[k], t - k))]);
+    path.attr("d", pts.length > 1 ? d3.line()(pts) : null); });
+})();
+
+// ---------------------------------------------------------------- radar helper
+function radar(svg, list, W = 440, H = 360, dur = 500) {
+  const cx = W / 2, cy = H / 2 + 4, R = Math.min(W, H) / 2 - 56, n = AXES.length;
+  const ang = k => -Math.PI / 2 + k * 2 * Math.PI / n, pt = (k, v) => [cx + Math.cos(ang(k)) * R * v / 100, cy + Math.sin(ang(k)) * R * v / 100];
+  if (svg.select(".frame").empty()) { const fr = svg.append("g").attr("class", "frame");
+    [25, 50, 75, 100].forEach(l => fr.append("polygon").attr("points", d3.range(n).map(k => pt(k, l).join(",")).join(" ")).attr("fill", "none").attr("stroke", css("--line-2")));
+    AXES.forEach((a, k) => { const [x2, y2] = pt(k, 100), [lx, ly] = pt(k, 120); fr.append("line").attr("x1", cx).attr("y1", cy).attr("x2", x2).attr("y2", y2).attr("stroke", css("--line"));
+      fr.append("text").attr("x", lx).attr("y", ly).attr("dy", ".35em").attr("text-anchor", Math.abs(lx - cx) < 8 ? "middle" : lx > cx ? "start" : "end").style("font-size", "11px").style("font-weight", 600).text(a.k); }); }
+  const center = d3.range(n).map(() => [cx, cy].join(",")).join(" ");
+  svg.selectAll("polygon.series").data(list, d => d.key).join(e => e.append("polygon").attr("class", "series").attr("points", center), u => u, x => x.remove())
+    .attr("fill", d => d.color).attr("fill-opacity", .18).attr("stroke", d => d.color).attr("stroke-width", 2).attr("stroke-linejoin", "round")
+    .transition().duration(RM ? 0 : dur).attr("points", d => d.sc ? d.sc.map((v, k) => pt(k, v).join(",")).join(" ") : center);
+}
+
+// ---------------------------------------------------------------- profile (fixed at the latest session)
+(function profile() {
+  const sel = document.getElementById("pf-sel"); ranked.forEach(s => sel.insertAdjacentHTML("beforeend", `<option value="${s.i}">${s.name}</option>`));
+  document.getElementById("pf-date").textContent = `État au ${fd(GAMES[NG - 1].d)}`;
+  let cur = ranked[0].i;
+  function draw() { const s = S[cur], rank = ranked.findIndex(r => r.i === cur) + 1;
+    const streak = (() => { let n = 0, t = 0; for (let k = s.played.length - 1; k >= 0; k--) { const g = Math.sign(s.played[k].v); if (!n) t = g; if (g === t && g) n++; else break; } return n ? `${n} ${t > 0 ? "gain" : "perte"}${n > 1 ? "s" : ""}` : "—"; })();
+    const vi = d3.maxIndex(F[cur]), ne = d3.maxIndex(F.map(r => r[cur]));
+    const M = [["Rang", "#" + rank, `sur ${ranked.length}`], ["Résultat", sg(s.total), "CHF", cls(s.total)], ["ROI", pct(s.roi), `cash-in ${Math.round(s.staked)} CHF`],
+      ["Sessions", s.n, `${pct(s.part)} des sessions`], ["Taux de gain", pct(s.winRate), `${s.wins} / ${s.n}`], ["Moyenne", sg1(s.avg), `médiane ${sg1(s.median)}`, cls(s.avg)],
+      ["Volatilité", s.std.toFixed(1), `Sharpe ${s.sharpe.toFixed(2)}`], ["Gain max.", sg(s.best.v), fd(GAMES[s.best.g].d), "pos"], ["Perte max.", sg(s.worst.v), fd(GAMES[s.worst.g].d), "neg"],
+      ["Drawdown max.", sg(-s.dd), "depuis un sommet", "neg"], ["Série de gains max.", s.ws, `pertes : ${s.ls}`], ["Série en cours", streak, `forme 5 sess. ${sg(s.form)}`],
+      ["En tête de session", s.firsts, "sessions"], ["Victime préférée", F[cur][vi] > 0 ? P[vi] : "—", F[cur][vi] > 0 ? `${Math.round(F[cur][vi])} CHF pris` : ""],
+      ["Bête noire", F[ne][cur] > 0 ? P[ne] : "—", F[ne][cur] > 0 ? `${Math.round(F[ne][cur])} CHF perdus` : ""]];
+    document.getElementById("pf-left").innerHTML = `<div style="display:flex; align-items:baseline; gap:10px; margin-bottom:10px"><span class="dot" style="background:${col(s.name)}; width:12px; height:12px"></span>
+      <span style="font-family:var(--f-serif); font-size:28px; font-weight:600">${s.name}</span><span class="note">dernière session le ${fd(GAMES[s.played[s.n - 1].g].d)}</span></div>
+      <div class="mgrid">${M.map(([l, v, sub, c]) => `<div class="m"><div class="l">${l}</div><div class="v ${c || ""}">${v}</div><div class="s">${sub}</div></div>`).join("")}</div>
+      <div class="note" style="margin-top:12px">Résultats des 12 dernières sessions jouées</div><div class="seq">${s.played.slice(-12).map(p => `<span class="${cls(p.v)}" title="${fd(GAMES[p.g].d)}">${sg(p.v)}</span>`).join("")}</div>`;
+    radar(d3.select("#pf-radar"), [{key: "p", color: col(P[cur]), sc: scoresAt(s, NG)}], 440, 360, 400);
+    const sp = d3.select("#pf-spark"); sp.selectAll("*").remove(); const pts = cum.map(c => c[cur]), x = d3.scaleLinear([0, NG], [8, 432]), y = d3.scaleLinear(d3.extent([...pts, 0]), [112, 8]).nice();
+    sp.append("line").attr("x1", 8).attr("x2", 432).attr("y1", y(0)).attr("y2", y(0)).attr("stroke", css("--zero"));
+    sp.append("path").attr("d", d3.area().x((d, k) => x(k)).y0(y(0)).y1(d => y(d))(pts)).attr("fill", col(s.name)).attr("fill-opacity", .12);
+    sp.append("path").attr("d", d3.line().x((d, k) => x(k)).y(d => y(d))(pts)).attr("fill", "none").attr("stroke", col(s.name)).attr("stroke-width", 1.8);
+    sp.append("circle").attr("cx", x(NG)).attr("cy", y(pts[NG])).attr("r", 3.5).attr("fill", col(s.name)); }
+  sel.addEventListener("change", () => { cur = +sel.value; draw(); }); draw();
+})();
+
+// ---------------------------------------------------------------- comparison
+(function compare() {
+  const a = document.getElementById("vs-a"), b = document.getElementById("vs-b");
+  [a, b].forEach(s => ranked.forEach(r => s.insertAdjacentHTML("beforeend", `<option value="${r.i}">${r.name}</option>`))); a.value = ranked[0].i; b.value = ranked[1].i;
+  function draw() { const A = S[+a.value], B = S[+b.value];
+    radar(d3.select("#vs-radar"), [{key: "a", color: col(A.name), sc: scoresAt(A, NG)}, {key: "b", color: col(B.name), sc: scoresAt(B, NG)}]);
+    const rows = [["Résultat", s => s.total, sg], ["ROI", s => s.roi, pct], ["Taux de gain", s => s.winRate, pct], ["Moyenne", s => s.avg, sg1], ["Volatilité", s => -s.std, v => (-v).toFixed(1)],
+      ["Sharpe", s => s.sharpe, v => v.toFixed(2)], ["Gain max.", s => s.best.v, sg], ["Perte max.", s => s.worst.v, sg], ["Drawdown max.", s => -s.dd, sg], ["Sessions", s => s.n, String]];
+    document.getElementById("vs-t").innerHTML = `<tr><td class="b" style="color:${col(A.name)}">${A.name}</td><td></td><td class="b" style="color:${col(B.name)}">${B.name}</td></tr>`
+      + rows.map(([l, f, fmt]) => { const va = f(A), vb = f(B); return `<tr><td class="${va > vb ? "b" : ""}">${fmt(va)}</td><td>${l}</td><td class="${vb > va ? "b" : ""}">${fmt(vb)}</td></tr>`; }).join("");
+    const both = d3.range(NG).filter(g => res[g][A.i] != null && res[g][B.i] != null), aa = both.filter(g => res[g][A.i] > res[g][B.i]).length, bb = both.filter(g => res[g][B.i] > res[g][A.i]).length;
+    const net = NET[A.i][B.i];
+    document.getElementById("vs-h").innerHTML = A.i === B.i ? "Sélectionner deux joueurs distincts." :
+      `<div class="label" style="margin-bottom:6px">Sessions communes</div>${both.length} sessions communes. ${A.name} termine devant ${B.name} dans ${aa} cas (${both.length ? pct(aa / both.length) : "—"}), ${B.name} devant ${A.name} dans ${bb} cas.<br>
+       Transferts cumulés : ${A.name} ← ${B.name} <span class="num">${Math.round(F[A.i][B.i])}</span> CHF ; ${B.name} ← ${A.name} <span class="num">${Math.round(F[B.i][A.i])}</span> CHF. Solde : <b class="${cls(net)}">${sg(net)} CHF</b> en faveur de ${net >= 0 ? A.name : B.name}.`; }
+  a.addEventListener("change", draw); b.addEventListener("change", draw); draw();
+})();
+
+
+// ---------------------------------------------------------------- fig 9 : continuous chord
+(function chord() {
+  const svg = d3.select("#chord"), ids = d3.range(NP).filter(i => d3.sum(F[i]) + d3.sum(F, r => r[i]) > .5);
+  const R = 238, arc = d3.arc().innerRadius(R).outerRadius(R + 12), rib = d3.ribbonArrow().radius(R - 2).padAngle(1 / R);
+  const gR = svg.append("g"), gG = svg.append("g");
+  let hover = null, T = NG;
+  function draw(t) { T = t; const [a, b, f] = split(t), M = ids.map(j => ids.map(i => lerp(FK[a][i][j], FK[b][i][j], f)));
+    if (d3.sum(M.flat()) < .01) { gR.selectAll("*").remove(); gG.selectAll("*").remove(); return; }
+    const ch = d3.chordDirected().padAngle(.05).sortSubgroups(d3.descending)(M);
+    gR.selectAll("path").data(ch, d => d.source.index + "-" + d.target.index).join("path").attr("d", rib).attr("fill", d => col(P[ids[d.target.index]])).attr("stroke", css("--panel")).attr("stroke-width", .5)
+      .attr("fill-opacity", d => hover == null || d.source.index === hover || d.target.index === hover ? .72 : .05)
+      .on("mouseenter", (ev, d) => showTip(ev, `<div class="t">${P[ids[d.source.index]]} → ${P[ids[d.target.index]]}</div><div class="r"><span>Montant cumulé</span><span>${Math.round(d.source.value)} CHF</span></div>`)).on("mousemove", moveTip).on("mouseleave", hideTip);
+    const g = gG.selectAll("g").data(ch.groups, d => d.index).join(e => { const g = e.append("g"); g.append("path"); g.append("text"); return g; });
+    g.select("path").attr("d", arc).attr("fill", d => col(P[ids[d.index]]));
+    g.select("text").each(d => d.a = (d.startAngle + d.endAngle) / 2).attr("dy", ".35em").attr("transform", d => `rotate(${d.a * 180 / Math.PI - 90}) translate(${R + 20}) ${d.a > Math.PI ? "rotate(180)" : ""}`)
+      .attr("text-anchor", d => d.a > Math.PI ? "end" : null).style("font-size", "12px").style("font-weight", 600).style("fill", d => col(P[ids[d.index]])).text(d => d.value > 1 ? P[ids[d.index]] : "");
+    g.on("mouseenter", (ev, d) => { hover = d.index; draw(T); const i = ids[d.index], Fa = FK[Math.floor(T)]; showTip(ev, `<div class="t">${P[i]}</div><div class="r"><span>Pris aux autres</span><span class="pos">${Math.round(d3.sum(Fa[i]))}</span></div><div class="r"><span>Pris par les autres</span><span class="neg">${Math.round(d3.sum(Fa, r => r[i]))}</span></div>`); })
+      .on("mousemove", moveTip).on("mouseleave", () => { hover = null; draw(T); hideTip(); }); }
+  player("pl-chord", draw);
+})();
+
+// ---------------------------------------------------------------- victims table + bilateral balance
+(function victims() {
+  const rows = ranked.map(s => { const i = s.i, vi = d3.maxIndex(F[i]), ne = d3.maxIndex(F.map(r => r[i]));
+    return {s, vi: F[i][vi] > .5 ? vi : null, vv: F[i][vi], ne: F[ne][i] > .5 ? ne : null, nv: F[ne][i]}; });
+  document.getElementById("vb").innerHTML = `<thead><tr><th>Joueur</th><th style="text-align:left">Victime préférée</th><th>Montant pris</th><th style="text-align:left">Bête noire</th><th>Montant perdu</th></tr></thead><tbody>`
+    + rows.map(r => `<tr><td class="nm"><span class="dot" style="background:${col(r.s.name)}"></span>${r.s.name}</td>
+      <td style="text-align:left; font-family:var(--f-sans)">${r.vi != null ? `<span class="dot" style="background:${col(P[r.vi])}"></span>${P[r.vi]}` : "—"}</td><td class="pos">${r.vi != null ? Math.round(r.vv) : ""}</td>
+      <td style="text-align:left; font-family:var(--f-sans)">${r.ne != null ? `<span class="dot" style="background:${col(P[r.ne])}"></span>${P[r.ne]}` : "—"}</td><td class="neg">${r.ne != null ? Math.round(r.nv) : ""}</td></tr>`).join("") + "</tbody>";
+  let tr = {v: -1}, dm = {v: -1}; P.forEach((_, i) => P.forEach((_, j) => { if (F[i][j] > tr.v) tr = {v: F[i][j], i, j}; if (NET[i][j] > dm.v) dm = {v: NET[i][j], i, j}; }));
+  document.getElementById("ff-kpi").innerHTML = `<div><span class="label">Transfert maximal</span><br><b>${P[tr.i]}</b> a pris <b class="num">${Math.round(tr.v)} CHF</b> à <b>${P[tr.j]}</b> sur la période.</div>
+    <div style="margin-top:8px"><span class="label">Solde bilatéral maximal</span><br><b>${P[dm.i]}</b> domine <b>${P[dm.j]}</b> de <b class="num">${Math.round(dm.v)} CHF</b> en solde net.</div>`;
+  const sel = document.getElementById("ff-sel"); ranked.forEach(s => sel.insertAdjacentHTML("beforeend", `<option value="${s.i}">${s.name}</option>`));
+  const svg = d3.select("#ff"), W = 1000, H = 330, m = {t: 10, r: 70, b: 10, l: 100};
+  function draw() { const i = +sel.value, opp = ranked.map(s => s.i).filter(j => j !== i), mx = d3.max(opp, j => Math.abs(NET[i][j])) || 1;
+    const y = d3.scaleBand(opp, [m.t, H - m.b]).padding(.25), x = d3.scaleLinear([-mx * 1.15, mx * 1.15], [m.l, W - m.r]);
+    svg.selectAll("*").remove();
+    svg.append("g").attr("class", "axis gridl").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(8).tickSize(-(H - m.t - m.b)).tickFormat(() => ""));
+    svg.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", m.t).attr("y2", H - m.b).attr("stroke", css("--zero"));
+    const g = svg.selectAll("g.r").data(opp).join("g").attr("class", "r").attr("transform", j => `translate(0,${y(j)})`);
+    g.append("text").attr("x", m.l - 10).attr("y", y.bandwidth() / 2).attr("dy", ".35em").attr("text-anchor", "end").style("font-size", "13px").style("font-weight", 600).style("fill", "var(--ink)").text(j => P[j]);
+    g.append("rect").attr("height", y.bandwidth()).attr("x", x(0)).attr("width", 0).attr("fill", j => NET[i][j] >= 0 ? css("--pos") : css("--neg"))
+      .transition().duration(RM ? 0 : 500).attr("x", j => x(Math.min(0, NET[i][j]))).attr("width", j => Math.abs(x(NET[i][j]) - x(0)));
+    g.append("text").attr("y", y.bandwidth() / 2).attr("dy", ".35em").style("font-size", "12px").style("font-family", "var(--f-mono)")
+      .attr("x", j => NET[i][j] >= 0 ? x(NET[i][j]) + 6 : x(NET[i][j]) - 6).attr("text-anchor", j => NET[i][j] >= 0 ? "start" : "end")
+      .style("fill", j => Math.abs(NET[i][j]) < .5 ? "var(--ink-3)" : NET[i][j] > 0 ? "var(--pos)" : "var(--neg)").text(j => Math.abs(NET[i][j]) < .5 ? "0" : sg(NET[i][j]));
+    g.append("rect").attr("x", m.l).attr("width", W - m.l - m.r).attr("height", y.bandwidth()).attr("fill", "transparent")
+      .on("mouseenter", (ev, j) => showTip(ev, `<div class="t">${P[i]} / ${P[j]}</div><div class="r"><span>Pris à ${P[j]}</span><span class="pos">${Math.round(F[i][j])}</span></div><div class="r"><span>Pris par ${P[j]}</span><span class="neg">${Math.round(F[j][i])}</span></div><div class="r"><span>Solde</span><span>${sg(NET[i][j])}</span></div>`))
+      .on("mousemove", moveTip).on("mouseleave", hideTip); }
+  sel.addEventListener("change", draw); draw();
+})();
+
+// ---------------------------------------------------------------- records
+(function records() {
+  const el = S.filter(s => s.n >= 5), R = [];
+  const bg = S.filter(s => s.n).reduce((a, b) => b.best.v > a.best.v ? b : a); R.push(["Gain maximal sur une session", sg(bg.best.v) + " CHF", bg.name, fd(GAMES[bg.best.g].d)]);
+  const wg = S.filter(s => s.n).reduce((a, b) => b.worst.v < a.worst.v ? b : a); R.push(["Perte maximale sur une session", sg(wg.worst.v) + " CHF", wg.name, fd(GAMES[wg.worst.g].d)]);
+  const ws = S.reduce((a, b) => b.ws > a.ws ? b : a); R.push(["Série de gains la plus longue", ws.ws + " sessions", ws.name, "consécutives jouées"]);
+  const ls = S.reduce((a, b) => b.ls > a.ls ? b : a); R.push(["Série de pertes la plus longue", ls.ls + " sessions", ls.name, "consécutives jouées"]);
+  let up = {v: -1}; S.forEach(s => { let lo = 0, lk = 0; cum.forEach((c, k) => { if (c[s.i] < lo) { lo = c[s.i]; lk = k; } if (c[s.i] - lo > up.v) up = {v: c[s.i] - lo, s, lk}; }); });
+  R.push(["Remontée maximale", "+" + Math.round(up.v) + " CHF", up.s.name, `depuis le point bas du ${fd(GAMES[Math.max(0, up.lk - 1)].d)}`]);
+  const dd = S.reduce((a, b) => b.dd > a.dd ? b : a); R.push(["Drawdown maximal", sg(-dd.dd) + " CHF", dd.name, "baisse depuis un sommet"]);
+  const bp = d3.maxIndex(pot); R.push(["Pot maximal", Math.round(pot[bp]) + " CHF", `En tête : ${P[winnerOf(bp)]}`, fd(GAMES[bp].d)]);
+  const fi = S.reduce((a, b) => b.firsts > a.firsts ? b : a); R.push(["Sessions terminées en tête", fi.firsts, fi.name, `sur ${fi.n} sessions jouées`]);
+  let tr = {v: -1}; F.forEach((r, i) => r.forEach((v, j) => { if (v > tr.v) tr = {v, i, j}; })); R.push(["Transfert bilatéral maximal", Math.round(tr.v) + " CHF", `${P[tr.j]} → ${P[tr.i]}`, "cumul sur la période"]);
+  const sh = el.reduce((a, b) => b.sharpe > a.sharpe ? b : a); R.push(["Ratio de Sharpe le plus élevé", sh.sharpe.toFixed(2), sh.name, "minimum 5 sessions"]);
+  const lv = el.reduce((a, b) => b.std < a.std ? b : a); R.push(["Volatilité la plus faible", lv.std.toFixed(1) + " CHF", lv.name, "minimum 5 sessions"]);
+  const as = S.reduce((a, b) => b.n > a.n ? b : a); R.push(["Participation la plus élevée", as.n + " / " + NG, as.name, pct(as.n / NG) + " des sessions"]);
+  document.getElementById("recs").innerHTML = R.map(([k, v, w, d]) => `<div class="rec"><div class="k">${k}</div><div class="v">${v}</div><div class="w">${w}</div><div class="d">${d}</div></div>`).join("");
+})();
+
+// ---------------------------------------------------------------- model
+(function model() {
+  const act = S.filter(s => s.n >= 3 && d3.range(NG - 8, NG).some(g => res[g][s.i] != null));
+  const z = act.map(s => 0.6 * s.recent / 40 + 0.4 * s.avg / 25 + 0.3 * s.winRate), ex = z.map(v => Math.exp(1.6 * v)), tot = d3.sum(ex);
+  const rows = act.map((s, k) => ({s, p: ex[k] / tot})).sort((a, b) => b.p - a.p), mx = rows[0].p;
+  document.getElementById("odds").innerHTML = rows.map(r => `<div class="od"><span><span class="dot" style="background:${col(r.s.name)}"></span>${r.s.name}</span><span class="bar"><i style="width:${r.p / mx * 100}%;background:${col(r.s.name)}"></i></span><span class="num">${(r.p * 100).toFixed(1)} %</span></div>`).join("");
+})();
+</script>
